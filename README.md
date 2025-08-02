@@ -37,6 +37,41 @@ This project uses a Raspberry Pi 5 as a **lightweight network intrusion detectio
 - Handling Twilio API integration and error tracing
 
 ---
+Suspicious_traffic.sh
+  
+    #!/bin/bash
+    echo "[*] Monitoring and logging suspicious ports..."
+    echo "[*] Logs written to suspicious.log"
+    echo "[*] SMS alert on any connection attempt to port 23 (Telnet)"
+    
+    sudo tcpdump -i wlan0 port 21 or port 22 or port 23 or port 80 or port 443 ->while read line; do
+      echo "$(date): $line" >> suspicious.log
+    
+      # Only trigger SMS if port 23 (Telnet) is specifically targeted
+      if echo "$line" | grep -q "\.23:"; then
+        echo "[ALERT] Telnet activity detected — sending SMS..."
+        /home/dipesh/twilio-env/bin/python /home/dipesh/send_sms.py "$line"
+      fi
+    done
+
+send_sms.py
+
+        from twilio.rest import Client
+
+        # Replace these with your actual values
+        account_sid = "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        auth_token = "your_auth_token"
+        
+        client = Client(account_sid, auth_token)
+        
+        # Replace from_ with your Twilio number and to with your own number
+        message = client.messages.create(
+            body="🚨 Live test from Raspberry Pi",
+            from_="+1XXXXXXXXXX",  # your Twilio number
+            to="+44XXXXXXXXXX"     # your personal phone
+        )
+        
+        print(message.sid)
 
 ## Demo
 
@@ -82,3 +117,6 @@ account_sid = "YOUR_SID"
 auth_token = "YOUR_AUTH"
 from_number = "+1XXXXXXXXXX"
 to_number = "+44XXXXXXXXXX"
+
+
+
