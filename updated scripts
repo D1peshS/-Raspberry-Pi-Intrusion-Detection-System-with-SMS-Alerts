@@ -1,0 +1,56 @@
+suspicious_traffic.sh
+
+    #!/bin/bash
+    
+    echo "[*] Monitoring and logging suspicious ports..."
+    echo "[*] Logs written to suspicious.log"
+    echo "[*] SMS alert on any connection attempt to port 23 (Telnet)"
+    
+    sudo tcpdump -l -i wlan0 port 21 or port 22 or port 23 or port 80 or port 443 | while read line; do
+      echo "$(date): $line" >> suspicious.log
+    
+      if echo "$line" | grep -q "\.23:"; then
+        src_ip=$(echo "$line" | awk '{print $3}' | cut -d'.' -f1-4)
+        dst_ip=$(echo "$line" | awk '{print $5}' | cut -d'.' -f1-4)
+        timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+    
+        msg="🚨 Telnet probe detected!\nFrom: $src_ip\nTo: $dst_ip:23\nTime: $timestamp"
+        echo "[ALERT] $msg"
+        /home/dipesh/twilio-env/bin/python3 /home/dipesh/send_sms.py "$msg"
+      fi
+    done
+
+
+ 
+ 
+ send_sms.py
+
+    from twilio.rest import Client
+    
+    def send_alert(message):
+        account_sid = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        auth_token = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        from_number = "+44xxxxxxxxx"
+        to_number = "+44xxxxxxxxxx"
+    
+        client = Client(account_sid, auth_token)
+        
+        try:
+            client.messages.create(
+                body=message,
+                from_=from_number,
+                to=to_number
+            )
+            print("[+] SMS alert sent successfully.")
+        except Exception as e:
+            print(f"[!] Failed to send SMS: {e}")
+    
+    if __name__ == "__main__":
+        import sys
+    
+        if len(sys.argv) < 2:
+            print("[!] No message provided. Usage: python send_sms.py \"<message>\"")
+            sys.exit(1)
+    
+        msg = sys.argv[1]
+        send_alert(msg)
